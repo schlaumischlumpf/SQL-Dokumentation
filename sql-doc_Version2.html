@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL Dokumentation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'roboto-mono': ['Roboto Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        .section-highlight {
+            animation: highlightPulse 2s ease-in-out;
+        }
+        
+        @keyframes highlightPulse {
+            0% { background-color: transparent; }
+            25% { background-color: rgba(59, 130, 246, 0.1); }
+            75% { background-color: rgba(59, 130, 246, 0.1); }
+            100% { background-color: transparent; }
+        }
+        
+        .dark .section-highlight {
+            animation: highlightPulseDark 2s ease-in-out;
+        }
+        
+        @keyframes highlightPulseDark {
+            0% { background-color: transparent; }
+            25% { background-color: rgba(147, 197, 253, 0.1); }
+            75% { background-color: rgba(147, 197, 253, 0.1); }
+            100% { background-color: transparent; }
+        }
+        
+        .contents-list a.active {
+            background-color: #3b82f6;
+            color: white;
+        }
+        
+        .dark .contents-list a.active {
+            background-color: #60a5fa;
+            color: #1f2937;
+        }
+
+        .sql-table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        
+        .sql-table th {
+            background-color: #3b82f6;
+            color: white;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        .dark .sql-table th {
+            background-color: #1e40af;
+        }
+        
+        .sql-table td {
+            border: 1px solid #e5e7eb;
+            padding: 8px;
+        }
+        
+        .dark .sql-table td {
+            border-color: #4b5563;
+        }
+        
+        .sql-table tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+        
+        .dark .sql-table tr:nth-child(even) {
+            background-color: #1f2937;
+        }
+
+        #sql-input {
+            tab-size: 4;
+            -moz-tab-size: 4;
+            line-height: 1.5;
+        }
+
+        .db-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        .dark .db-badge {
+            background-color: #60a5fa;
+            color: #1f2937;
+        }
+
+        /* Autocomplete Dropdown */
+        .autocomplete-dropdown {
+            position: absolute;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .dark .autocomplete-dropdown {
+            background: #374151;
+            border-color: #4b5563;
+        }
+
+        .autocomplete-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.875rem;
+        }
+
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        .dark .autocomplete-item:hover,
+        .dark .autocomplete-item.selected {
+            background-color: #60a5fa;
+            color: #1f2937;
+        }
+
+        .autocomplete-keyword {
+            color: #3b82f6;
+            font-weight: 600;
+        }
+
+        .dark .autocomplete-keyword {
+            color: #60a5fa;
+        }
+
+        .autocomplete-table {
+            color: #059669;
+        }
+
+        .dark .autocomplete-table {
+            color: #34d399;
+        }
+
+        #sql-input-container {
+            position: relative;
+        }
+    </style>
+</head>
+<body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+    <button id="theme-toggle" class="fixed top-4 right-4 z-50 p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+        <span class="material-icons hidden dark:block text-yellow-400">light_mode</span>
+        <span class="material-icons block dark:hidden text-gray-700">dark_mode</span>
+    </button>
+
+    <main class="flex min-h-screen">
+        <aside id="sidebar" class="sidebar fixed top-0 left-0 w-64 h-screen bg-gray-50 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto z-40 transform -translate-x-full lg:translate-x-0 transition-transform duration-300">
+            <div class="p-6">
+                <div class="contents-header text-xl font-bold text-gray-900 dark:text-gray-100 mb-6 font-roboto-mono tracking-wide">
+                    Inhalt
+                </div>
+                <ul class="contents-list space-y-2">
+                    <li><a href="#uebersicht" class="block py-2 px-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors font-roboto-mono text-sm">Übersicht</a></li>
+                    <li><a href="#create-database" class="block py-2 px-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors font-roboto-mono text-sm">Datenbank anlegen</a></li>
+                    <li><a href="#create-table" class="block py-2 px-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors font-roboto-mono text-sm">Tabelle anlegen</a></li>
+                    <li><a href="#insert" class="block py-2 px-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors font-roboto-mono text-sm">Datensatz einfügen</a></li>
+                    <li><a href="#update" class="block py-2 px-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors font-roboto-mono text-sm">Datensatz aktualisieren</a></li>
+                    <li><a href="#delete" class="block py-2 px-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors font-roboto-mono text-sm">Datensatz löschen</a></li>
+                    <li><a href="#drop-table" class="block py-2 px-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors font-roboto-mono text-sm">Tabelle löschen</a></li>
+                    <li><a href="#playground" class="block py-2 px-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors font-roboto-mono text-sm">Playground</a></li>
+                </ul>
+            </div>
+        </aside>
+
+        <div class="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30 hidden" id="sidebar-overlay"></div>
+
+        <button class="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors" id="sidebar-toggle">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+        </button>
+
+        <div class="content flex-1 lg:ml-64 p-6 lg:p-8">
+            <div class="mb-8">
+                <h1 class="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">SQL Grundlagen</h1>
+                <div class="h-1 w-32 bg-gradient-to-r from-blue-600 to-purple-600 rounded mb-4"></div>
+            </div>
+
+            <section id="uebersicht" class="mb-10 scroll-mt-16">
+                <h2 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
+                    <span class="bg-blue-500 w-8 h-8 rounded-lg flex items-center justify-center text-white mr-3 text-sm font-bold">0</span>
+                    Was ist SQL?
+                </h2>
+                <p class="text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+                    SQL (Structured Query Language) ist eine standardisierte Sprache zur Verwaltung und Abfrage von relationalen Datenbanken. 
+                    Mit SQL können Datenbanken erstellt, Daten eingefügt, aktualisiert, abgefragt und gelöscht werden.
+                </p>
+                <p class="text-gray-700 dark:text-gray-300 leading-relaxed">
+                    In dieser Dokumentation lernst du die wichtigsten SQL-Befehle kennen, die du für deinen Informatik Leistungskurs benötigst.
+                </p>
+            </section>
+
+            <section id="create-database" class="mb-10 scroll-mt-16">
+                <h2 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
+                    <span class="bg-green-500 w-8 h-8 rounded-lg flex items-center justify-center text-white mr-3 text-sm font-bold">1</span>
+                    Datenbank anlegen (CREATE DATABASE)
+                </h2>
+                
+                <h3 class="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-4 mb-3">Allgemeine Erklärung</h3>
+                <p class="text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+                    Mit dem <code class="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">CREATE DATABASE</code> Befehl wird eine neue Datenbank erstellt. 
+                    Eine Datenbank ist ein Container, der mehrere Tabellen beinhalten kann.
+                </p>
+                
+                <div class="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mb-4">
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Syntax:</p>
+                    <code class="text-green-600 dark:text-green-400 font-mono">CREATE DATABASE datenbankname;</code>
+                </div>
+
+                <h3 class="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-6 mb-3">Beispiel</h3>
+                <p class="text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+                    Wir erstellen eine Datenbank für eine Schule:
+                </p>
+                <div class="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mb-4">
+                    <code class="text-green-600 dark:text-green-400 font-mono">CREATE DATABASE schule;</code>
+                </div>
+
+                <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4 mt-4">
+                    <h4 class="text-lg font-semibold text-red-800 dark:text-red-300 mb-2 flex items-center">
+                        <span class="material-icons mr-2">warning</span>
+                        Gefahren
+                    </h4>
+                    <ul class="text-red-700 dark:text-red-300 space-y-1 list-disc list-inside">
+                        <li>Eine Datenbank mit gleichem Namen wird ohne Warnung überschrieben (bei einigen Systemen)</li>
+                        <li>Fehlende Berechtigungen können zu Fehlern führen</li>
+                        <li>Ungültige Zeichen im Namen können Probleme verursachen (z.B. Leerzeichen, Umlaute)</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="create-table" class="mb-10 scroll-mt-16">
+                <h2 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
+                    <span class="bg-yellow-500 w-8 h-8 rounded-lg flex items-center justify-center text-white mr-3 text-sm font-bold">2</span>
+                    Tabelle anlegen (CREATE TABLE)
+                </h2>
+                
+                <h3 class="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-4 mb-3">Allgemeine Erklärung</h3>
+                <p class="text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+                    Mit <code class="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">CREATE TABLE</code> wird eine neue Tabelle innerhalb einer Datenbank erstellt. 
+                    Dabei werden die Spalten (Felder) und deren Datentypen definiert.
+                </p>
+                
+                <div class="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mb-4">
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Syntax:</p>
+                    <pre class="text-green-600 dark:text-green-400 font-mono">CREATE TABLE tabellenname (
+    spalte1 DATENTYP,
+    spalte2 DATENTYP,
+    ...
+);</pre>
+                </div>
+
+                <h3 class="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-6 mb-3">Beispiel</h3>
+                <p class="text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+                    Wir erstellen eine Tabelle für Schüler:
+                </p>
+                <div class="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mb-4">
+                    <pre class="text-green-600 dark:text-green-400 font-mono">CREATE TABLE schueler (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    klasse TEXT,
+    alter INTEGER
+);</pre>
+                </div>
+
+                <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4 mt-4">
+                    <h4 class="text-lg font-semibold text-red-800 dark:text-red-300 mb-2 flex items-center">
+                        <span class="material-icons mr-2">warning</span>
+                        Gefahren
+                    </h4>
+                    <ul class="text-red-700 dark:text-red-300 space-y-1 list-disc list-inside">
+                        <li>Falsche Datentypen können zu Fehlern beim Einfügen führen</li>
+                        <li>Fehlende PRIMARY KEY Definition kann Duplikate ermöglichen</li>
+                        <li>Tabelle mit gleichem Namen wird möglicherweise überschrieben</li>
+                        <li>NOT NULL Constraints sollten sorgfältig überlegt werden</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="insert" class="mb-10 scroll-mt-16">
+                <h2 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
+                    <span class="bg-purple-500 w-8 h-8 rounded-lg flex items-center justify-center text-white mr-3 text-sm font-bold">3</span>
+                    Datensatz einfügen (INSERT)
+                </h2>
+                
+                <h3 class="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-4 mb-3">Allgemeine Erklärung</h3>
+                <p class="text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+                    Mit <code class="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">INSERT INTO</code> werden neue Datensätze in eine bestehende Tabelle eingefügt.
+                </p>
+                
+                <div class="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mb-4">
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Syntax:</p>
+                    <pre class="text-green-600 dark:text-green-400 font-mono">INSERT INTO tabellenname (spalte1, spalte2, ...)
+VALUES (wert1, wert2, ...);</pre>
+                </div>
+
+                <h3 class="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-6 mb-3">Beispiel</h3>
+                <p class="text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+                    Wir fügen einen Schüler in die Tabelle ein:
+                </p>
+                <div class="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mb-4">
+                    <pre class="text-green-600 dark:text-green-400 font-mono">INSERT INTO schueler (id, name, klasse, alter)
+VALUES (1, 'Max Mustermann', '12a', 17);</pre>
+                </div>
+
+                <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4 mt-4">
+                    <h4 class="text-lg font-semibold text-red-800 dark:text-red-300 mb-2 flex items-center">
+                        <span class="material-icons mr-2">warning</span>
+                        Gefahren
+                    </h4>
+                    <ul class="text-red-700 dark:text-red-300 space-y-1 list-disc list-inside">
+                        <li>Datentyp-Konflikte führen zu Fehlern (z.B. Text in INTEGER-Spalte)</li>
+                        <li>PRIMARY KEY Duplikate werden abgelehnt</li>
+                        <li>NOT NULL Spalten müssen Werte erhalten</li>
+                        <li>SQL-Injection-Gefahr bei ungefilterten Benutzereingaben</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="update" class="mb-10 scroll-mt-16">
+                <h2 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
+                    <span class="bg-orange-500 w-8 h-8 rounded-lg flex items-center justify-center text-white mr-3 text-sm font-bold">4</span>
+                    Datensatz aktualisieren (UPDATE)
+                </h2>
+                
+                <h3 class="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-4 mb-3">Allgemeine Erklärung</h3>
+                <p class="text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+                    Mit <code class="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">UPDATE</code> werden bestehende Datensätze in einer Tabelle geändert. 
+                    Die WHERE-Klausel bestimmt, welche Datensätze aktualisiert werden.
+                </p>
+                
+                <div class="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mb-4">
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Syntax:</p>
+                    <pre class="text-green-600 dark:text-green-400 font-mono">UPDATE tabellenname
+SET spalte1 = wert1, spalte2 = wert2, ...
+WHERE bedingung;</pre>
+                </div>
+
+                <h3 class="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-6 mb-3">Beispiel</h3>
+                <p class="text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+                    Wir ändern die Klasse eines Schülers:
+                </p>
+                <div class="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mb-4">
+                    <pre class="text-green-600 dark:text-green-400 font-mono">UPDATE schueler
+SET klasse = '12b', alter = 18
+WHERE id = 1;</pre>
+                </div>
+
+                <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4 mt-4">
+                    <h4 class="text-lg font-semibold text-red-800 dark:text-red-300 mb-2 flex items-center">
+                        <span class="material-icons mr-2">warning</span>
+                        Gefahren
+                    </h4>
+                    <ul class="text-red-700 dark:text-red-300 space-y-1 list-disc list-inside">
+                        <li><strong>SEHR KRITISCH:</strong> Ohne WHERE-Klausel werden ALLE Datensätze geändert!</li>
+                        <li>Falsche WHERE-Bedingung kann ungewollte Datensätze ändern</li>
+                        <li>Datentyp-Konflikte können auftreten</li>
+                        <li>Keine Rückgängig-Funktion - Änderungen sind permanent</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="delete" class="mb-10 scroll-mt-16">
+                <h2 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
+                    <span class="bg-red-500 w-8 h-8 rounded-lg flex items-center justify-center text-white mr-3 text-sm font-bold">5</span>
+                    Datensatz löschen (DELETE)
+                </h2>
+                
+                <h3 class="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-4 mb-3">Allgemeine Erklärung</h3>
+                <p class="text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+                    Mit <code class="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">DELETE</code> werden Datensätze aus einer Tabelle gelöscht. 
+                    Die WHERE-Klausel ist essentiell, um nur bestimmte Datensätze zu löschen.
+                </p>
+                
+                <div class="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mb-4">
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Syntax:</p>
+                    <pre class="text-green-600 dark:text-green-400 font-mono">DELETE FROM tabellenname
+WHERE bedingung;</pre>
+                </div>
+
+                <h3 class="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-6 mb-3">Beispiel</h3>
+                <p class="text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+                    Wir löschen einen Schüler:
+                </p>
+                <div class="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mb-4">
+                    <pre class="text-green-600 dark:text-green-400 font-mono">DELETE FROM schueler
+WHERE id = 1;</pre>
+                </div>
+
+                <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4 mt-4">
+                    <h4 class="text-lg font-semibold text-red-800 dark:text-red-300 mb-2 flex items-center">
+                        <span class="material-icons mr-2">warning</span>
+                        Gefahren
+                    </h4>
+                    <ul class="text-red-700 dark:text-red-300 space-y-1 list-disc list-inside">
+                        <li><strong>EXTREM KRITISCH:</strong> Ohne WHERE werden ALLE Datensätze gelöscht!</li>
+                        <li>Gelöschte Daten sind unwiederbringlich verloren</li>
+                        <li>Falsche WHERE-Bedingung löscht falsche Datensätze</li>
+                        <li>Foreign Key Constraints können Löschen verhindern</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="drop-table" class="mb-10 scroll-mt-16">
+                <h2 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
+                    <span class="bg-pink-500 w-8 h-8 rounded-lg flex items-center justify-center text-white mr-3 text-sm font-bold">6</span>
+                    Tabelle löschen (DROP TABLE)
+                </h2>
+                
+                <h3 class="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-4 mb-3">Allgemeine Erklärung</h3>
+                <p class="text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+                    Mit <code class="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">DROP TABLE</code> wird eine komplette Tabelle samt allen Daten aus der Datenbank gelöscht.
+                </p>
+                
+                <div class="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mb-4">
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Syntax:</p>
+                    <code class="text-green-600 dark:text-green-400 font-mono">DROP TABLE tabellenname;</code>
+                </div>
+
+                <h3 class="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-6 mb-3">Beispiel</h3>
+                <p class="text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+                    Wir löschen die gesamte Schüler-Tabelle:
+                </p>
+                <div class="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mb-4">
+                    <code class="text-green-600 dark:text-green-400 font-mono">DROP TABLE schueler;</code>
+                </div>
+
+                <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4 mt-4">
+                    <h4 class="text-lg font-semibold text-red-800 dark:text-red-300 mb-2 flex items-center">
+                        <span class="material-icons mr-2">warning</span>
+                        Gefahren
+                    </h4>
+                    <ul class="text-red-700 dark:text-red-300 space-y-1 list-disc list-inside">
+                        <li><strong>HÖCHSTE GEFAHR:</strong> Kompletter Datenverlust - Tabelle und alle Daten sind weg!</li>
+                        <li>Keine Wiederherstellungsmöglichkeit ohne Backup</li>
+                        <li>Abhängige Tabellen können Probleme verursachen</li>
+                        <li>Kein Sicherheitsdialog - wird sofort ausgeführt</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="playground" class="mb-10 scroll-mt-16">
+                <h2 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
+                    <span class="bg-indigo-500 w-8 h-8 rounded-lg flex items-center justify-center text-white mr-3 text-sm font-bold">7</span>
+                    SQL Playground
+                </h2>
+                
+                <p class="text-gray-700 dark:text-gray-300 leading-relaxed mb-6">
+                    Probiere hier selbst SQL-Befehle aus! Deine Datenbanken und Tabellen werden lokal im Browser gespeichert.
+                </p>
+
+                <div class="mb-4 flex items-center gap-3 flex-wrap">
+                    <label class="text-gray-700 dark:text-gray-300 font-semibold">Aktive Datenbank:</label>
+                    <select id="db-select" class="px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">Keine Datenbank ausgewählt</option>
+                    </select>
+                    <span id="current-db-badge" class="db-badge hidden"></span>
+                </div>
+
+                <div class="mb-4" id="sql-input-container">
+                    <label class="block text-gray-700 dark:text-gray-300 font-semibold mb-2">
+                        SQL-Befehl eingeben:
+                        <span class="text-xs font-normal text-gray-500 dark:text-gray-400 ml-2">(Tab für Einrückung, Strg+Leertaste für Vorschläge)</span>
+                    </label>
+                    <textarea id="sql-input" class="w-full h-48 p-4 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical" placeholder="Beispiel:&#10;CREATE DATABASE meine_datenbank;&#10;&#10;CREATE TABLE test (&#10;    id INTEGER PRIMARY KEY,&#10;    name TEXT&#10;);"></textarea>
+                    <div id="autocomplete-dropdown" class="autocomplete-dropdown"></div>
+                </div>
+
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <button id="execute-btn" class="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold transition-colors flex items-center">
+                        <span class="material-icons mr-2">play_arrow</span>
+                        Ausführen
+                    </button>
+                    <button id="clear-btn" class="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-semibold transition-colors flex items-center">
+                        <span class="material-icons mr-2">clear</span>
+                        Eingabe löschen
+                    </button>
+                    <button id="format-btn" class="px-6 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-semibold transition-colors flex items-center">
+                        <span class="material-icons mr-2">code</span>
+                        Formatieren
+                    </button>
+                    <button id="reset-db-btn" class="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold transition-colors flex items-center">
+                        <span class="material-icons mr-2">delete_forever</span>
+                        Alles zurücksetzen
+                    </button>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">Ausgabe:</h3>
+                    <div id="sql-output" class="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-4 min-h-24 font-mono text-sm overflow-x-auto">
+                        <span class="text-gray-500 dark:text-gray-400">Bereit für SQL-Befehle...</span>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">Datenbank-Übersicht:</h3>
+                    <div id="db-overview" class="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-4">
+                        <span class="text-gray-500 dark:text-gray-400">Keine Datenbanken vorhanden</span>
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">Schnellbeispiele:</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <button class="example-btn text-left p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors" data-sql="CREATE DATABASE schule;">
+                            <span class="text-blue-800 dark:text-blue-300 font-semibold block mb-1">Datenbank erstellen</span>
+                            <span class="text-xs text-blue-600 dark:text-blue-400">CREATE DATABASE schule;</span>
+                        </button>
+                        <button class="example-btn text-left p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors" data-sql="CREATE TABLE schueler (&#10;    id INTEGER PRIMARY KEY,&#10;    name TEXT NOT NULL,&#10;    klasse TEXT,&#10;    alter INTEGER&#10;);">
+                            <span class="text-green-800 dark:text-green-300 font-semibold block mb-1">Tabelle erstellen</span>
+                            <span class="text-xs text-green-600 dark:text-green-400">CREATE TABLE schueler (...)</span>
+                        </button>
+                        <button class="example-btn text-left p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/30 transition-colors" data-sql="INSERT INTO schueler (id, name, klasse, alter)&#10;VALUES (1, 'Max Mustermann', '12a', 17);">
+                            <span class="text-yellow-800 dark:text-yellow-300 font-semibold block mb-1">Datensatz einfügen</span>
+                            <span class="text-xs text-yellow-600 dark:text-yellow-400">INSERT INTO schueler (...)</span>
+                        </button>
+                        <button class="example-btn text-left p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors" data-sql="SELECT * FROM schueler;">
+                            <span class="text-purple-800 dark:text-purple-300 font-semibold block mb-1">Alle Daten anzeigen</span>
+                            <span class="text-xs text-purple-600 dark:text-purple-400">SELECT * FROM schueler;</span>
+                        </button>
+                        <button class="example-btn text-left p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors" data-sql="UPDATE schueler&#10;SET alter = 18&#10;WHERE id = 1;">
+                            <span class="text-orange-800 dark:text-orange-300 font-semibold block mb-1">Datensatz aktualisieren</span>
+                            <span class="text-xs text-orange-600 dark:text-orange-400">UPDATE schueler SET ...</span>
+                        </button>
+                        <button class="example-btn text-left p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors" data-sql="DELETE FROM schueler&#10;WHERE id = 1;">
+                            <span class="text-red-800 dark:text-red-300 font-semibold block mb-1">Datensatz löschen</span>
+                            <span class="text-xs text-red-600 dark:text-red-400">DELETE FROM schueler WHERE ...</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        // Dark mode
+        const themeToggle = document.getElementById('theme-toggle');
+        const html = document.documentElement;
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        html.classList.toggle('dark', currentTheme === 'dark');
+        themeToggle.addEventListener('click', () => {
+            const isDark = html.classList.contains('dark');
+            html.classList.toggle('dark', !isDark);
+            localStorage.setItem('theme', isDark ? 'light' : 'dark');
+        });
+
+        // Sidebar
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('-translate-x-full');
+            sidebarOverlay.classList.toggle('hidden');
+        });
+        sidebarOverlay.addEventListener('click', () => {
+            sidebar.classList.add('-translate-x-full');
+            sidebarOverlay.classList.add('hidden');
+        });
+
+        // Scroll
+        document.addEventListener('DOMContentLoaded', () => {
+            const sections = document.querySelectorAll('section[id]');
+            const navLinks = document.querySelectorAll('.contents-list a');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const id = entry.target.getAttribute('id');
+                        navLinks.forEach(link => {
+                            link.classList.remove('active');
+                            if (link.getAttribute('href') === `#${id}`) {
+                                link.classList.add('active');
+                            }
+                        });
+                    }
+                });
+            }, { root: null, rootMargin: '-20% 0px -60% 0px', threshold: 0 });
+            sections.forEach(section => observer.observe(section));
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const targetId = link.getAttribute('href');
+                    const targetSection = document.querySelector(targetId);
+                    if (targetSection) {
+                        targetSection.scrollIntoView({ behavior: 'smooth' });
+                        sidebar.classList.add('-translate-x-full');
+                        sidebarOverlay.classList.add('hidden');
+                    }
+                });
+            });
+        });
+
+        // SQL Database Manager
+        class SQLDatabaseManager {
+            constructor() {
+                const saved = localStorage.getItem('sql-playground-databases');
+                this.databases = saved ? JSON.parse(saved) : {};
+                this.currentDatabase = localStorage.getItem('sql-current-db') || null;
+            }
+
+            save() {
+                localStorage.setItem('sql-playground-databases', JSON.stringify(this.databases));
+                localStorage.setItem('sql-current-db', this.currentDatabase || '');
+            }
+
+            executeSQL(sql) {
+                sql = sql.trim().replace(/;$/, '');
+                const upper = sql.toUpperCase();
+                
+                if (upper.startsWith('CREATE DATABASE')) return this.createDatabase(sql);
+                if (upper.startsWith('DROP DATABASE')) return this.dropDatabase(sql);
+                if (upper.startsWith('USE')) return this.useDatabase(sql);
+                if (upper.startsWith('CREATE TABLE')) return this.createTable(sql);
+                if (upper.startsWith('INSERT INTO')) return this.insertInto(sql);
+                if (upper.startsWith('SELECT')) return this.select(sql);
+                if (upper.startsWith('UPDATE')) return this.update(sql);
+                if (upper.startsWith('DELETE')) return this.delete(sql);
+                if (upper.startsWith('DROP TABLE')) return this.dropTable(sql);
+                
+                return { success: false, message: 'Unbekannter SQL-Befehl' };
+            }
+
+            createDatabase(sql) {
+                const match = sql.match(/CREATE DATABASE (\w+)/i);
+                if (!match) return { success: false, message: 'Syntax: CREATE DATABASE name' };
+                const name = match[1];
+                if (this.databases[name]) return { success: false, message: `Datenbank "${name}" existiert bereits` };
+                this.databases[name] = { tables: {} };
+                this.currentDatabase = name;
+                this.save();
+                return { success: true, message: `Datenbank "${name}" erstellt und aktiviert` };
+            }
+
+            dropDatabase(sql) {
+                const match = sql.match(/DROP DATABASE (\w+)/i);
+                if (!match) return { success: false, message: 'Syntax: DROP DATABASE name' };
+                const name = match[1];
+                if (!this.databases[name]) return { success: false, message: `Datenbank "${name}" existiert nicht` };
+                delete this.databases[name];
+                if (this.currentDatabase === name) this.currentDatabase = null;
+                this.save();
+                return { success: true, message: `Datenbank "${name}" gelöscht` };
+            }
+
+            useDatabase(sql) {
+                const match = sql.match(/USE (\w+)/i);
+                if (!match) return { success: false, message: 'Syntax: USE name' };
+                const name = match[1];
+                if (!this.databases[name]) return { success: false, message: `Datenbank "${name}" existiert nicht` };
+                this.currentDatabase = name;
+                this.save();
+                return { success: true, message: `Datenbank "${name}" aktiviert` };
+            }
+
+            getCurrentDB() {
+                return this.currentDatabase ? this.databases[this.currentDatabase] : null;
+            }
+
+            createTable(sql) {
+                const db = this.getCurrentDB();
+                if (!db) return { success: false, message: 'Keine Datenbank ausgewählt. Nutze CREATE DATABASE oder USE.' };
+                const match = sql.match(/CREATE TABLE (\w+)\s*\((.*)\)/is);
+                if (!match) return { success: false, message: 'Syntax: CREATE TABLE name (...)' };
+                const name = match[1];
+                if (db.tables[name]) return { success: false, message: `Tabelle "${name}" existiert bereits` };
+                const columns = match[2].split(',').map(col => {
+                    const parts = col.trim().split(/\s+/);
+                    return { name: parts[0], type: parts[1] || 'TEXT', constraints: parts.slice(2).join(' ') };
+                });
+                db.tables[name] = { columns, rows: [] };
+                this.save();
+                return { success: true, message: `Tabelle "${name}" erstellt` };
+            }
+
+            insertInto(sql) {
+                const db = this.getCurrentDB();
+                if (!db) return { success: false, message: 'Keine Datenbank ausgewählt' };
+                const match = sql.match(/INSERT INTO (\w+)\s*\((.*?)\)\s*VALUES\s*\((.*?)\)/is);
+                if (!match) return { success: false, message: 'Syntax: INSERT INTO table (...) VALUES (...)' };
+                const [, table, cols, vals] = match;
+                if (!db.tables[table]) return { success: false, message: `Tabelle "${table}" nicht gefunden` };
+                const columnNames = cols.split(',').map(c => c.trim());
+                const values = vals.split(',').map(v => v.trim().replace(/^['"]|['"]$/g, ''));
+                const row = {};
+                columnNames.forEach((col, i) => row[col] = values[i]);
+                db.tables[table].rows.push(row);
+                this.save();
+                return { success: true, message: `Datensatz in "${table}" eingefügt` };
+            }
+
+            select(sql) {
+                const db = this.getCurrentDB();
+                if (!db) return { success: false, message: 'Keine Datenbank ausgewählt' };
+                const match = sql.match(/SELECT (.*?) FROM (\w+)(?: WHERE (.*))?/is);
+                if (!match) return { success: false, message: 'Syntax: SELECT cols FROM table' };
+                const [, cols, table, where] = match;
+                if (!db.tables[table]) return { success: false, message: `Tabelle "${table}" nicht gefunden` };
+                let rows = db.tables[table].rows;
+                if (where) rows = rows.filter(row => this.evalWhere(row, where));
+                const columns = cols.trim() === '*' ? (rows[0] ? Object.keys(rows[0]) : []) : cols.split(',').map(c => c.trim());
+                return { success: true, message: 'Abfrage erfolgreich', data: rows, columns };
+            }
+
+            update(sql) {
+                const db = this.getCurrentDB();
+                if (!db) return { success: false, message: 'Keine Datenbank ausgewählt' };
+                const match = sql.match(/UPDATE (\w+)\s+SET (.*?)(?:\s+WHERE (.*))?$/is);
+                if (!match) return { success: false, message: 'Syntax: UPDATE table SET ...' };
+                const [, table, set, where] = match;
+                if (!db.tables[table]) return { success: false, message: `Tabelle "${table}" nicht gefunden` };
+                const updates = {};
+                set.split(',').forEach(s => {
+                    const [col, val] = s.split('=').map(x => x.trim());
+                    updates[col] = val.replace(/^['"]|['"]$/g, '');
+                });
+                let count = 0;
+                db.tables[table].rows = db.tables[table].rows.map(row => {
+                    if (!where || this.evalWhere(row, where)) {
+                        count++;
+                        return { ...row, ...updates };
+                    }
+                    return row;
+                });
+                this.save();
+                return { success: true, message: `${count} Datensatz(e) aktualisiert` };
+            }
+
+            delete(sql) {
+                const db = this.getCurrentDB();
+                if (!db) return { success: false, message: 'Keine Datenbank ausgewählt' };
+                const match = sql.match(/DELETE FROM (\w+)(?:\s+WHERE (.*))?/is);
+                if (!match) return { success: false, message: 'Syntax: DELETE FROM table' };
+                const [, table, where] = match;
+                if (!db.tables[table]) return { success: false, message: `Tabelle "${table}" nicht gefunden` };
+                const before = db.tables[table].rows.length;
+                if (where) {
+                    db.tables[table].rows = db.tables[table].rows.filter(row => !this.evalWhere(row, where));
+                } else {
+                    db.tables[table].rows = [];
+                }
+                const deleted = before - db.tables[table].rows.length;
+                this.save();
+                return { success: true, message: `${deleted} Datensatz(e) gelöscht` };
+            }
+
+            dropTable(sql) {
+                const db = this.getCurrentDB();
+                if (!db) return { success: false, message: 'Keine Datenbank ausgewählt' };
+                const match = sql.match(/DROP TABLE (\w+)/i);
+                if (!match) return { success: false, message: 'Syntax: DROP TABLE name' };
+                const name = match[1];
+                if (!db.tables[name]) return { success: false, message: `Tabelle "${name}" nicht gefunden` };
+                delete db.tables[name];
+                this.save();
+                return { success: true, message: `Tabelle "${name}" gelöscht` };
+            }
+
+            evalWhere(row, where) {
+                const match = where.match(/(\w+)\s*=\s*(.+)/);
+                if (!match) return true;
+                const [, col, val] = match;
+                return String(row[col]) === val.trim().replace(/^['"]|['"]$/g, '');
+            }
+
+            reset() {
+                this.databases = {};
+                this.currentDatabase = null;
+                this.save();
+            }
+
+            getAllDatabases() {
+                return Object.keys(this.databases);
+            }
+
+            getOverview() {
+                return Object.entries(this.databases).map(([dbName, db]) => ({
+                    name: dbName,
+                    tables: Object.entries(db.tables).map(([tableName, table]) => ({
+                        name: tableName,
+                        columns: table.columns.map(c => c.name),
+                        rowCount: table.rows.length
+                    }))
+                }));
+            }
+
+            getAllTables() {
+                const db = this.getCurrentDB();
+                return db ? Object.keys(db.tables) : [];
+            }
+        }
+
+        const dbManager = new SQLDatabaseManager();
+
+        // Autocomplete System
+        class SQLAutocomplete {
+            constructor(textarea, dbManager) {
+                this.textarea = textarea;
+                this.dbManager = dbManager;
+                this.dropdown = document.getElementById('autocomplete-dropdown');
+                this.suggestions = [];
+                this.selectedIndex = -1;
+                
+                this.keywords = [
+                    'SELECT', 'FROM', 'WHERE', 'INSERT INTO', 'VALUES', 'UPDATE', 'SET',
+                    'DELETE FROM', 'CREATE TABLE', 'DROP TABLE', 'CREATE DATABASE', 
+                    'DROP DATABASE', 'USE', 'PRIMARY KEY', 'NOT NULL', 'INTEGER', 'TEXT',
+                    'VARCHAR', 'REAL', 'BLOB', 'AND', 'OR', 'ORDER BY', 'LIMIT', 'DISTINCT'
+                ];
+                
+                this.setupListeners();
+            }
+
+            setupListeners() {
+                this.textarea.addEventListener('input', () => this.handleInput());
+                this.textarea.addEventListener('keydown', (e) => this.handleKeyDown(e));
+                document.addEventListener('click', (e) => {
+                    if (!this.dropdown.contains(e.target) && e.target !== this.textarea) {
+                        this.hide();
+                    }
+                });
+            }
+
+            handleInput() {
+                const cursorPos = this.textarea.selectionStart;
+                const text = this.textarea.value.substring(0, cursorPos);
+                const words = text.split(/\s+/);
+                const currentWord = words[words.length - 1];
+                
+                if (currentWord.length < 2) {
+                    this.hide();
+                    return;
+                }
+                
+                this.suggestions = this.getSuggestions(currentWord);
+                if (this.suggestions.length > 0) {
+                    this.show();
+                } else {
+                    this.hide();
+                }
+            }
+
+            getSuggestions(word) {
+                const upper = word.toUpperCase();
+                const suggestions = [];
+                
+                // Keywords
+                this.keywords.forEach(kw => {
+                    if (kw.startsWith(upper)) {
+                        suggestions.push({ text: kw, type: 'keyword' });
+                    }
+                });
+                
+                // Tables
+                const tables = this.dbManager.getAllTables();
+                tables.forEach(table => {
+                    if (table.toUpperCase().startsWith(upper)) {
+                        suggestions.push({ text: table, type: 'table' });
+                    }
+                });
+                
+                return suggestions.slice(0, 10);
+            }
+
+            show() {
+                this.dropdown.innerHTML = '';
+                this.suggestions.forEach((suggestion, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'autocomplete-item';
+                    if (suggestion.type === 'keyword') {
+                        item.innerHTML = `<span class="autocomplete-keyword">${suggestion.text}</span>`;
+                    } else if (suggestion.type === 'table') {
+                        item.innerHTML = `<span class="autocomplete-table">${suggestion.text}</span> <span style="opacity: 0.6; font-size: 0.75rem;">(Tabelle)</span>`;
+                    }
+                    item.addEventListener('click', () => this.insertSuggestion(suggestion.text));
+                    this.dropdown.appendChild(item);
+                });
+                
+                // Position dropdown
+                const rect = this.textarea.getBoundingClientRect();
+                const container = document.getElementById('sql-input-container');
+                this.dropdown.style.top = (this.textarea.offsetTop + this.textarea.offsetHeight) + 'px';
+                this.dropdown.style.left = this.textarea.offsetLeft + 'px';
+                this.dropdown.style.width = this.textarea.offsetWidth + 'px';
+                this.dropdown.style.display = 'block';
+                this.selectedIndex = -1;
+            }
+
+            hide() {
+                this.dropdown.style.display = 'none';
+                this.selectedIndex = -1;
+            }
+
+            handleKeyDown(e) {
+                if (this.dropdown.style.display === 'none') {
+                    // Tab für Einrückung
+                    if (e.key === 'Tab') {
+                        e.preventDefault();
+                        const start = this.textarea.selectionStart;
+                        const end = this.textarea.selectionEnd;
+                        const value = this.textarea.value;
+                        this.textarea.value = value.substring(0, start) + '    ' + value.substring(end);
+                        this.textarea.selectionStart = this.textarea.selectionEnd = start + 4;
+                    }
+                    // Strg+Leertaste für Autocomplete
+                    else if (e.ctrlKey && e.key === ' ') {
+                        e.preventDefault();
+                        this.handleInput();
+                    }
+                    return;
+                }
+                
+                const items = this.dropdown.querySelectorAll('.autocomplete-item');
+                
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    this.selectedIndex = Math.min(this.selectedIndex + 1, items.length - 1);
+                    this.updateSelection(items);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    this.selectedIndex = Math.max(this.selectedIndex - 1, -1);
+                    this.updateSelection(items);
+                } else if (e.key === 'Enter' && this.selectedIndex >= 0) {
+                    e.preventDefault();
+                    this.insertSuggestion(this.suggestions[this.selectedIndex].text);
+                } else if (e.key === 'Escape') {
+                    this.hide();
+                }
+            }
+
+            updateSelection(items) {
+                items.forEach((item, index) => {
+                    item.classList.toggle('selected', index === this.selectedIndex);
+                });
+                if (this.selectedIndex >= 0) {
+                    items[this.selectedIndex].scrollIntoView({ block: 'nearest' });
+                }
+            }
+
+            insertSuggestion(text) {
+                const cursorPos = this.textarea.selectionStart;
+                const value = this.textarea.value;
+                const beforeCursor = value.substring(0, cursorPos);
+                const afterCursor = value.substring(cursorPos);
+                const words = beforeCursor.split(/\s+/);
+                words.pop();
+                const newValue = words.join(' ') + (words.length > 0 ? ' ' : '') + text + ' ' + afterCursor;
+                this.textarea.value = newValue;
+                const newPos = newValue.length - afterCursor.length;
+                this.textarea.selectionStart = this.textarea.selectionEnd = newPos;
+                this.hide();
+                this.textarea.focus();
+            }
+        }
+
+        // Auto-close brackets and quotes
+        const sqlInput = document.getElementById('sql-input');
+        const autocomplete = new SQLAutocomplete(sqlInput, dbManager);
+
+        sqlInput.addEventListener('keydown', (e) => {
+            const start = sqlInput.selectionStart;
+            const end = sqlInput.selectionEnd;
+            const value = sqlInput.value;
+            
+            const pairs = {
+                '(': ')',
+                '"': '"',
+                "'": "'"
+            };
+            
+            if (pairs[
