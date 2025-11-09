@@ -993,4 +993,204 @@ WHERE id = 1;</pre>
                 "'": "'"
             };
             
-            if (pairs[
+            if (pairs[e.key] && start === end) {
+                e.preventDefault();
+                const closing = pairs[e.key];
+                sqlInput.value = value.substring(0, start) + e.key + closing + value.substring(end);
+                sqlInput.selectionStart = sqlInput.selectionEnd = start + 1;
+            }
+        });
+
+        // UI Elements
+        const executeBtn = document.getElementById('execute-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const formatBtn = document.getElementById('format-btn');
+        const resetDbBtn = document.getElementById('reset-db-btn');
+        const sqlOutput = document.getElementById('sql-output');
+        const dbOverview = document.getElementById('db-overview');
+        const dbSelect = document.getElementById('db-select');
+        const currentDbBadge = document.getElementById('current-db-badge');
+
+        // Execute SQL
+        executeBtn.addEventListener('click', () => {
+            const sql = sqlInput.value.trim();
+            if (!sql) {
+                sqlOutput.innerHTML = '<span class="text-yellow-600 dark:text-yellow-400">⚠ Bitte gib einen SQL-Befehl ein</span>';
+                return;
+            }
+
+            const statements = sql.split(';').filter(s => s.trim());
+            let outputs = [];
+
+            statements.forEach(statement => {
+                const result = dbManager.executeSQL(statement);
+                if (result.success) {
+                    if (result.data) {
+                        // Display table
+                        let html = `<div class="text-green-600 dark:text-green-400 mb-2">✓ ${result.message}</div>`;
+                        if (result.data.length > 0) {
+                            html += '<div class="overflow-x-auto"><table class="sql-table">';
+                            html += '<thead><tr>';
+                            result.columns.forEach(col => {
+                                html += `<th>${col}</th>`;
+                            });
+                            html += '</tr></thead><tbody>';
+                            result.data.forEach(row => {
+                                html += '<tr>';
+                                result.columns.forEach(col => {
+                                    html += `<td>${row[col] !== undefined ? row[col] : ''}</td>`;
+                                });
+                                html += '</tr>';
+                            });
+                            html += '</tbody></table></div>';
+                        } else {
+                            html += '<div class="text-gray-500 dark:text-gray-400 mt-2">Keine Datensätze gefunden</div>';
+                        }
+                        outputs.push(html);
+                    } else {
+                        outputs.push(`<div class="text-green-600 dark:text-green-400">✓ ${result.message}</div>`);
+                    }
+                } else {
+                    outputs.push(`<div class="text-red-600 dark:text-red-400">✗ Fehler: ${result.message}</div>`);
+                }
+            });
+
+            sqlOutput.innerHTML = outputs.join('<div class="border-t border-gray-300 dark:border-gray-600 my-3"></div>');
+            updateDbOverview();
+            updateDbSelect();
+        });
+
+        // Clear input
+        clearBtn.addEventListener('click', () => {
+            sqlInput.value = '';
+            sqlInput.focus();
+        });
+
+        // Format SQL
+        formatBtn.addEventListener('click', () => {
+            let sql = sqlInput.value.trim();
+            
+            // Simple SQL formatter
+            sql = sql.replace(/\s+/g, ' '); // Normalize whitespace
+            sql = sql.replace(/\s*,\s*/g, ',\n    '); // Commas on new lines
+            sql = sql.replace(/\s+(FROM|WHERE|SET|VALUES|ORDER BY|LIMIT)\s+/gi, '\n$1 ');
+            sql = sql.replace(/\(\s*/g, '(\n    ');
+            sql = sql.replace(/\s*\)/g, '\n)');
+            
+            // Uppercase keywords
+            const keywords = ['SELECT', 'FROM', 'WHERE', 'INSERT', 'INTO', 'VALUES', 'UPDATE', 'SET', 
+                            'DELETE', 'CREATE', 'TABLE', 'DATABASE', 'DROP', 'ALTER', 'PRIMARY', 'KEY',
+                            'NOT', 'NULL', 'INTEGER', 'TEXT', 'VARCHAR', 'REAL', 'USE', 'AND', 'OR'];
+            keywords.forEach(kw => {
+                const regex = new RegExp(`\\b${kw}\\b`, 'gi');
+                sql = sql.replace(regex, kw);
+            });
+            
+            sqlInput.value = sql;
+        });
+
+        // Reset database
+        resetDbBtn.addEventListener('click', () => {
+            if (confirm('Möchtest du wirklich ALLE Datenbanken löschen? Dies kann nicht rückgängig gemacht werden!')) {
+                dbManager.reset();
+                sqlOutput.innerHTML = '<span class="text-green-600 dark:text-green-400">✓ Alle Datenbanken wurden zurückgesetzt</span>';
+                updateDbOverview();
+                updateDbSelect();
+            }
+        });
+
+        // Example buttons
+        document.querySelectorAll('.example-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const sql = btn.getAttribute('data-sql');
+                sqlInput.value = sql;
+                sqlInput.focus();
+            });
+        });
+
+        // Database selector
+        dbSelect.addEventListener('change', () => {
+            const dbName = dbSelect.value;
+            if (dbName) {
+                const result = dbManager.executeSQL(`USE ${dbName}`);
+                if (result.success) {
+                    sqlOutput.innerHTML = `<span class="text-green-600 dark:text-green-400">✓ ${result.message}</span>`;
+                    updateDbOverview();
+                }
+            }
+        });
+
+        // Update database overview
+        function updateDbOverview() {
+            const overview = dbManager.getOverview();
+            
+            if (overview.length === 0) {
+                dbOverview.innerHTML = '<span class="text-gray-500 dark:text-gray-400">Keine Datenbanken vorhanden</span>';
+                currentDbBadge.classList.add('hidden');
+                return;
+            }
+
+            let html = '';
+            overview.forEach(db => {
+                const isActive = db.name === dbManager.currentDatabase;
+                html += `<div class="mb-4 pb-4 border-b border-gray-300 dark:border-gray-600 last:border-b-0">`;
+                html += `<h4 class="font-semibold text-lg mb-2 flex items-center">`;
+                html += `<span class="material-icons mr-2 text-blue-500">storage</span>`;
+                html += `${db.name}`;
+                if (isActive) {
+                    html += ` <span class="ml-2 text-xs px-2 py-1 bg-blue-500 text-white rounded">Aktiv</span>`;
+                }
+                html += `</h4>`;
+                
+                if (db.tables.length === 0) {
+                    html += `<div class="ml-8 text-sm text-gray-500 dark:text-gray-400">Keine Tabellen</div>`;
+                } else {
+                    db.tables.forEach(table => {
+                        html += `<div class="ml-8 mb-2">`;
+                        html += `<div class="flex items-center text-sm">`;
+                        html += `<span class="material-icons text-sm mr-1 text-green-500">table_chart</span>`;
+                        html += `<span class="font-mono font-semibold">${table.name}</span>`;
+                        html += `<span class="ml-2 text-xs text-gray-500 dark:text-gray-400">(${table.rowCount} Zeilen)</span>`;
+                        html += `</div>`;
+                        html += `<div class="ml-6 text-xs text-gray-600 dark:text-gray-400">`;
+                        html += `Spalten: ${table.columns.join(', ')}`;
+                        html += `</div>`;
+                        html += `</div>`;
+                    });
+                }
+                html += `</div>`;
+            });
+
+            dbOverview.innerHTML = html;
+
+            // Update badge
+            if (dbManager.currentDatabase) {
+                currentDbBadge.textContent = dbManager.currentDatabase;
+                currentDbBadge.classList.remove('hidden');
+            } else {
+                currentDbBadge.classList.add('hidden');
+            }
+        }
+
+        // Update database selector
+        function updateDbSelect() {
+            const databases = dbManager.getAllDatabases();
+            dbSelect.innerHTML = '<option value="">Keine Datenbank ausgewählt</option>';
+            
+            databases.forEach(dbName => {
+                const option = document.createElement('option');
+                option.value = dbName;
+                option.textContent = dbName;
+                if (dbName === dbManager.currentDatabase) {
+                    option.selected = true;
+                }
+                dbSelect.appendChild(option);
+            });
+        }
+
+        // Initialize
+        updateDbOverview();
+        updateDbSelect();
+    </script>
+</body>
+</html>
